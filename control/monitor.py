@@ -63,15 +63,42 @@ def analyze_data():
         .select_related('station__user', 'station__location') \
         .select_related('station__location__city', 'station__location__state',
                         'station__location__country') \
-        .values('values', 'station__user__username',
+        .values('values','station__user__username',
                 'measurement__name',
                 'measurement__max_value',
                 'measurement__min_value',
                 'station__location__city__name',
                 'station__location__state__name',
                 'station__location__country__name')
-    
+    for item in data_min_max:
+        valores = item["values"]
+        variable = item["measurement__name"]
+        max_value = item["measurement__max_value"] or 0
+        min_value = item["measurement__min_value"] or 0
 
+        country = item['station__location__country__name']
+        state = item['station__location__state__name']
+        city = item['station__location__city__name']
+        user = item['station__user__username']
+        lista_comparar = valores[-5:]
+        valor_comparar = statistics.fmean(lista_comparar)
+
+        #alerta de variable con valor minimo
+        if valor_comparar <= min_value:
+            print("Alerta de valor minimo para :"+variable)
+            message = "ALERT{} {} {}".format("_"+variable+"_MIN",variable, valor_comparar)
+            topic = '{}/{}/{}/{}/in'.format(country, state, city, user)
+            print(datetime.now(), "Sending alert to {} {}".format(topic, variable))
+            client.publish(topic, message)
+            alerts += 1
+
+        if valor_comparar >= max_value:
+            print("Alerta de valor maximo para :"+variable)
+            message = "ALERT{} {} {}".format("_"+variable+"_MAX",variable, valor_comparar)
+            topic = '{}/{}/{}/{}/in'.format(country, state, city, user)
+            print(datetime.now(), "Sending alert to {} {}".format(topic, variable))
+            client.publish(topic, message)
+            alerts += 1
 
     print(alerts, "alertas enviadas")
 
@@ -122,7 +149,7 @@ def start_cron():
     Inicia el cron que se encarga de ejecutar la función analyze_data cada 5 minutos.
     '''
     print("Iniciando cron...")
-    schedule.every(1).minutes.do(analyze_data)
+    schedule.every(30).seconds.do(analyze_data)
     print("Servicio de control iniciado")
     while 1:
         schedule.run_pending()
