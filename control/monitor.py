@@ -54,8 +54,25 @@ def analyze_data():
             print(datetime.now(), "Sending alert to {} {}".format(topic, variable))
             client.publish(topic, message)
             alerts += 1
-
     print(len(aggregation), "dispositivos revisados")
+
+    #Alertas por valores minimos y maximos
+    data_min_max = Data.objects.filter(
+        base_time__gte=datetime.now() - timedelta(hours=1))\
+        .select_related('station', 'measurement') \
+        .select_related('station__user', 'station__location') \
+        .select_related('station__location__city', 'station__location__state',
+                        'station__location__country') \
+        .values('values', 'station__user__username',
+                'measurement__name',
+                'measurement__max_value',
+                'measurement__min_value',
+                'station__location__city__name',
+                'station__location__state__name',
+                'station__location__country__name')
+    
+
+
     print(alerts, "alertas enviadas")
 
 
